@@ -1,11 +1,19 @@
+# Nexus.py
+
 import logging
-import csv
 import os
 from typing import Union, List, Dict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 import io
 import openpyxl
-import dateparser  # +++ Import the new library +++
+import dateparser
+
+# New Imports for Time Zone Handling
+from zoneinfo import ZoneInfo
+
+# Imports for PostgreSQL Database
+import psycopg2
+from dotenv import load_dotenv
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
@@ -19,9 +27,16 @@ from telegram.ext import (
 )
 
 # --- CONFIGURATION ---
+load_dotenv()  # Load .env file for local development
 TOKEN = os.getenv("NEXUS_TOKEN")
-DOCTORS_CSV = "doctors.csv"
-APPOINTMENTS_CSV = "appointments.csv"
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+# +++ Time Zone Configuration +++
+# --- IMPORTANT: SET THIS TO YOUR LOCAL TIME ZONE ---
+# Find your timezone name from: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+LOCAL_TZ_STR = "Asia/Kolkata"
+# ------------------------------------------------
+LOCAL_TZ = ZoneInfo(LOCAL_TZ_STR)
 
 # Enable logging
 logging.basicConfig(
@@ -33,49 +48,55 @@ logger = logging.getLogger(__name__)
 AUTHENTICATING, VIEWING_OPTIONS, GETTING_DATE, POST_VIEWING_CHOICE = range(4)
 
 # --- KEYBOARDS ---
-start_over_keyboard = ReplyKeyboardMarkup(
-    [["Start Over 🚀"]], resize_keyboard=True, one_time_keyboard=True
-)
+start_over_keyboard = ReplyKeyboardMarkup([["Start Over 🚀"]], resize_keyboard=True, one_time_keyboard=True)
 
 
-# --- DATA HELPER FUNCTIONS ---
-def find_doctor_by_id(doctor_id: str) -> Union[dict, None]:
-    """Finds a doctor's details by their ID from doctors.csv."""
+# --- DATABASE HELPER FUNCTIONS ---
+
+def get_db_connection():
+    """Establishes and returns a database connection."""
     try:
-        with open(DOCTORS_CSV, mode='r', newline='', encoding='utf-8') as file:
-            reader = csv.DictReader(file)
-            for row in reader:
-                if row['DoctorID'].strip().lower() == doctor_id.strip().lower():
-                    return row
+        return psycopg2.connect(DATABASE_URL)
+    except psycopg2.OperationalError as e:
+        logger.error(f"CRITICAL: Could not connect to the database: {e}")
         return None
-    except FileNotFoundError:
-        logger.error(f"Error: The file {DOCTORS_CSV} was not found.")
-        return None
+
+
+def find_doctor_by_id(doctor_id: str) -> Union[Dict, None]:
+    """Finds a doctor's details by their ID from the database."""
+    conn = get_db_connection()
+    if not conn: return None
+    with conn.cursor() as cur:
+        cur.execute("SELECT DoctorName FROM doctors WHERE DoctorID = %s;", (int(doctor_id),))
+        result = cur.fetchone()
+    conn.close()
+    return {'DoctorName': result[0]} if result else None
 
 
 def get_appointments_for_doctor(doctor_id: str, day: datetime.date) -> List[Dict]:
-    """Fetches appointment details for a specific doctor on a given day."""
+    """Fetches appointment details for a doctor on a given LOCAL day."""
+    conn = get_db_connection()
+    if not conn: return []
+
+    start_of_day_local = datetime.combine(day, time.min, tzinfo=LOCAL_TZ)
+    end_of_day_local = datetime.combine(day, time.max, tzinfo=LOCAL_TZ)
+
     appointments_list = []
-    try:
-        with open(APPOINTMENTS_CSV, mode='r', newline='', encoding='utf-8') as file:
-            reader = csv.DictReader(file)
-            for row in reader:
-                if row['DoctorID'].strip() == doctor_id.strip():
-                    appointment_dt = datetime.fromisoformat(row['AppointmentDateTime'])
-                    if appointment_dt.date() == day:
-                        appointments_list.append({
-                            "time": appointment_dt,
-                            "patient_name": row['PatientName']
-                        })
-        appointments_list.sort(key=lambda x: x['time'])
-        return appointments_list
-    except FileNotFoundError:
-        logger.error(f"Error: The file {APPOINTMENTS_CSV} was not found.")
-        return []
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT a.AppointmentDateTime, p.PatientName
+            FROM appointments a
+            JOIN profiles p ON a.PatientPhoneNumber = p.PhoneNumber
+            WHERE a.DoctorID = %s AND a.AppointmentDateTime >= %s AND a.AppointmentDateTime <= %s
+            ORDER BY a.AppointmentDateTime;
+        """, (int(doctor_id), start_of_day_local, end_of_day_local))
+        appointments_list = [{'time': row[0], 'patient_name': row[1]} for row in cur.fetchall()]
+    conn.close()
+    return appointments_list
 
 
 def create_appointments_excel(appointments: List[Dict], doctor_name: str, day: datetime.date) -> io.BytesIO:
-    """Creates an XLSX file in memory and returns it as a BytesIO object."""
+    """Creates an XLSX file with times converted to the local time zone."""
     workbook = openpyxl.Workbook()
     sheet = workbook.active
     sheet.title = day.strftime('%Y-%m-%d')
@@ -85,7 +106,8 @@ def create_appointments_excel(appointments: List[Dict], doctor_name: str, day: d
     sheet['A4'] = "Appointment Time"
     sheet['B4'] = "Patient Name"
     for index, record in enumerate(appointments, start=5):
-        sheet[f'A{index}'] = record['time'].strftime('%I:%M %p')
+        local_time = record['time'].astimezone(LOCAL_TZ)
+        sheet[f'A{index}'] = local_time.strftime('%I:%M %p')
         sheet[f'B{index}'] = record['patient_name']
     for cell in ['A1', 'A4', 'B4']:
         sheet[cell].font = openpyxl.styles.Font(bold=True)
@@ -141,14 +163,12 @@ async def view_records_router(update: Update, context: ContextTypes.DEFAULT_TYPE
     query = update.callback_query
     await query.answer()
     choice = query.data
-    today = datetime.now().date()
+    today = datetime.now(LOCAL_TZ).date()
     date_to_view = today if choice == 'view_today' else today + timedelta(days=1)
     return await display_records(update, context, date_to_view)
 
 
-# +++ MODIFIED: The prompt is now more user-friendly +++
 async def ask_for_specific_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Asks the user to enter a date in any format."""
     query = update.callback_query
     await query.answer()
     await query.edit_message_text(
@@ -157,24 +177,18 @@ async def ask_for_specific_date(update: Update, context: ContextTypes.DEFAULT_TY
     return GETTING_DATE
 
 
-# +++ MODIFIED: Uses dateparser for flexible date handling +++
 async def get_specific_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Parses the user-provided date using dateparser and displays records."""
     user_input = update.message.text
-    # Use dateparser to understand human-like dates
     date_obj = dateparser.parse(user_input)
 
     if date_obj:
-        date_to_view = date_obj.date()
-        return await display_records(update, context, date_to_view)
+        return await display_records(update, context, date_obj.date())
     else:
-        # If dateparser can't understand the date
         await update.message.reply_text(
             "Sorry, I couldn't understand that date. Please try again (e.g., 'tomorrow', 'Oct 5', '2025-10-05').")
-        return await show_viewing_options(update, context)  # Go back to main menu
+        return await show_viewing_options(update, context)
 
 
-# +++ MODIFIED: Reordered the text to show details first, then the final count +++
 async def display_records(update: Update, context: ContextTypes.DEFAULT_TYPE, date_to_view: datetime.date) -> int:
     doctor_id = context.user_data['doctor_id']
     doctor_name = context.user_data['doctor_name']
@@ -184,22 +198,19 @@ async def display_records(update: Update, context: ContextTypes.DEFAULT_TYPE, da
     date_str = date_to_view.strftime('%A, %B %d, %Y')
 
     if appointments:
-        # Build the list of appointments first
         appointment_details = "\n".join(
-            f"• {record['time'].strftime('%I:%M %p')} - {record['patient_name']}" for record in appointments
+            f"• {record['time'].astimezone(LOCAL_TZ).strftime('%I:%M %p')} - {record['patient_name']}"
+            for record in appointments
         )
-        # Create the final message with the list first and count at the end
         message_text = f"Appointments for {date_str}:\n\n{appointment_details}\n\n*Total Appointments: {total_appointments}*"
     else:
         message_text = f"No appointments found for {date_str}."
 
-    # Send the textual summary
     if update.callback_query:
         await update.callback_query.edit_message_text(message_text, parse_mode='Markdown')
     else:
         await update.message.reply_text(message_text, parse_mode='Markdown')
 
-    # Send the Excel file if there are appointments
     if appointments:
         excel_file = create_appointments_excel(appointments, doctor_name, date_to_view)
         file_name = f"Appointments_{doctor_name.replace(' ', '_')}_{date_to_view}.xlsx"
@@ -209,7 +220,6 @@ async def display_records(update: Update, context: ContextTypes.DEFAULT_TYPE, da
             filename=file_name
         )
 
-    # Show the follow-up menu
     keyboard = [
         [InlineKeyboardButton("See Other Records?", callback_data="view_again")],
         [InlineKeyboardButton("End Session", callback_data="end_session")]

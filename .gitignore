@@ -9,6 +9,3 @@ venv/
 # IDE / Editor specific
 .vscode/
 .idea/
-
-# Secret Files - DO NOT UPLOAD
-credentials.json
