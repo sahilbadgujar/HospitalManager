@@ -1,0 +1,41 @@
+DoctorID,DoctorName,Specialty,Experience,Education
+201,Dr. Sameer Verma,Musculoskeletal System,20,MS in Orthopedics
+202,Dr. Anjali Mehta,Musculoskeletal System,12,DNB in Orthopedics
+203,Dr. Vikram Sharma,Musculoskeletal System,15,MCh in Orthopedics
+204,Dr. Radha Krishnan,Musculoskeletal System,9,MS in Orthopedics
+301,Dr. Rohan Joshi,Nervous System,18,MD in Neurology
+302,Dr. Kavita Rao,Nervous System,10,DM in Neurology
+303,Dr. Alok Kumar,Nervous System,22,MCh in Neurosurgery
+304,Dr. Shalini Desai,Nervous System,7,MD in Neurology
+501,Dr. Sunil Agarwal,Trauma,25,MS in General Surgery
+502,Dr. Meera Jain,Trauma,14,MCh in Plastic Surgery
+503,Dr. Partha Sarthi,Trauma,10,MD in Emergency Medicine
+401,Dr. Fatima Khan,ENT,10,MS in ENT
+402,Dr. Arjun Reddy,ENT,16,DLO
+403,Dr. Sonal Bhatt,ENT,8,MS in ENT
+404,Dr. Gaurav Mehra,ENT,19,MS in Otorhinolaryngology
+601,Dr. Ritu Kapoor,Skin,13,MD in Dermatology
+602,Dr. Ankit Shah,Skin,9,DNB in Dermatology
+603,Dr. Priyanka Verma,Skin,7,MD in Dermatology
+701,Dr. Sanjeev Kumar,Pediatric Health,24,MD in Pediatrics
+702,Dr. Geeta Sharma,Pediatric Health,11,DM in Neonatology
+703,Dr. Vivek Pandey,Pediatric Health,16,MD in Pediatrics
+801,Dr. Divya Singh,Obstetrics and Gynecology,21,"MS in Obstetrics & Gynecology"
+802,Dr. Asha Menon,Obstetrics and Gynecology,14,"MD in Obstetrics & Gynecology"
+803,Dr. Rahul Sen,Obstetrics and Gynecology,10,"DNB in Obstetrics & Gynecology"
+101,Dr. Arun Gupta,Cardiovascular System,15,MD in Cardiology
+102,Dr. Priya Singh,Cardiovascular System,8,DM in Cardiology
+103,Dr. Sanjay Bose,Cardiovascular System,25,"MCh in Cardiovascular Surgery"
+104,Dr. Nidhi Kumar,Cardiovascular System,12,DNB in Cardiology
+901,Dr. Rajesh Singh,Digestive System,17,MD in Gastroenterology
+902,Dr. Poonam Sharma,Digestive System,9,DM in Gastroenterology
+903,Dr. Sameer Khan,Digestive System,20,MCh in GI Surgery
+1001,Dr. Aditi Verma,Endocrine System,14,DM in Endocrinology
+1002,Dr. Manish Patel,Endocrine System,11,MD in Endocrinology
+1003,Dr. Sonia Das,Endocrine System,16,"MD in Medicine (with fellowship)"
+1101,Dr. Anjali Rao,Mental Health,19,MD in Psychiatry
+1102,Dr. Vivek Sharma,Mental Health,13,MD in Psychiatry
+1103,Dr. Leena Bose,Mental Health,15,MPhil in Clinical Psychology
+1201,Dr. Siddharth Kapoor,Urogenital System,23,MCh in Urology
+1202,Dr. Rakesh Verma,Urogenital System,17,DM in Nephrology
+1203,Dr. Shanti Rao,Urogenital System,10,MS in Urology

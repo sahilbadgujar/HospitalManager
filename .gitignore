@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual Environment
+venv/
+.env
+
+# IDE / Editor specific
+.vscode/
+.idea/
+
+# Secret Files - DO NOT UPLOAD
+credentials.json
