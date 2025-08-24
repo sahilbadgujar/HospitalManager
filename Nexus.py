@@ -1,5 +1,6 @@
 import logging
 import csv
+import os
 from typing import Union, List, Dict
 from datetime import datetime, timedelta
 import io
@@ -18,7 +19,7 @@ from telegram.ext import (
 )
 
 # --- CONFIGURATION ---
-TOKEN = "7137311547:AAHzMvjf_86G7UFnNNVru9vJErL9QGzf0II"  # <<< IMPORTANT: PASTE YOUR NEXUS BOT TOKEN HERE
+TOKEN = os.getenv("NEXUS_TOKEN")
 DOCTORS_CSV = "doctors.csv"
 APPOINTMENTS_CSV = "appointments.csv"
 

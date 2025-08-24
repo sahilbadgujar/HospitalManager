@@ -17,7 +17,7 @@ from telegram.ext import (
 )
 
 # --- CONFIGURATION ---
-TOKEN = os.getenv("TELEGRAM_TOKEN")
+TOKEN = os.getenv("ECHO_TOKEN")
 SPECIALTIES_CSV = "specialties.csv"
 DOCTORS_CSV = "doctors.csv"
 APPOINTMENTS_CSV = "appointments.csv"
